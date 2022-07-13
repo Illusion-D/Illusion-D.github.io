@@ -1,5 +1,3 @@
-# 拾荒记
-
 [TOC]
 
 
@@ -290,6 +288,12 @@ signed main(){
 
 所谓权值线段树就是在值域上建一棵线段树，当插入一个数时，其位置加一。
 
+**例题：**[ [USACO08FEB]Hotel G](https://www.luogu.com.cn/problem/P2894) 
+
+
+
+
+
 **优化：动态开点**
 
 我们可以看到，在值域上开一棵线段树是非常危险的，这很可能会爆空间
@@ -395,7 +399,11 @@ int merge(int x, y){
 
 ##### 并查集进阶应用
 
+**边带权** （模板：[P1196 [NOI2002] 银河英雄传说](https://www.luogu.com.cn/problem/P1196) ）
 
+在本道题中要查询两个战舰之间所隔战舰，整个结构是许多条链，而每条链其实也是一颗特殊的树，可以用边带权的并查集来做。
+
+让同一列每两个战舰之间距离为 1， 则在路径压缩查找时可以顺便统计出每个战舰到祖先的距离，在求
 
 
 
@@ -1183,6 +1191,154 @@ int main(){
 
 ## 网络流
 
+### 网络最大流
+
+**EK算法：** 
+
+```cpp
+#include <bits/stdc++.h>
+#define int long long
+#define maxn 10005
+#define inf 1e9
+using namespace std;
+inline int read(){
+    int x = 0 , f = 1 ; char c = getchar() ;
+    while( c < '0' || c > '9' ) { if( c == '-' ) f = -1 ; c = getchar() ; } 
+    while( c >= '0' && c <= '9' ) { x = x * 10 + c - '0' ; c = getchar() ; } 
+    return x * f ;
+}
+struct edge{
+	int v, w, nxt;
+}e[maxn];
+int head[maxn], cnt;
+int n, m, s, t;
+void add(int u, int v, int w){
+	e[++cnt].v = v, e[cnt].w = w;
+	e[cnt].nxt = head[u], head[u] = cnt;
+}
+queue<int> q;
+int v[maxn];
+int maxflow = 0;
+int incf[maxn], pre[maxn];
+bool bfs(){
+	memset(v, 0, sizeof(v));
+	while(q.size()) q.pop();
+	q.push(s), v[s] = 1;
+	incf[s] = inf;
+	while(!q.empty()){
+		int x = q.front();
+		q.pop();
+		for(int i = head[x]; i; i = e[i].nxt){
+			if(e[i].w){
+				int y = e[i].v;
+				if(v[y]) continue;
+				incf[y] = min(incf[x], e[i].w);
+				pre[y] = i;
+				q.push(y);
+				v[y] = 1;
+				if(y == t) return 1;
+			}
+		}
+	}
+	return 0;
+}
+void update(){
+	int x = t;
+	while(x != s){
+		int i = pre[x];
+		e[i].w -= incf[t];
+		e[i ^ 1].w += incf[t];
+		x = e[i ^ 1].v;
+	}
+	maxflow += incf[t];
+}
+signed main() {
+	n = read(), m = read(), s = read(), t = read();
+	cnt = 1;
+	for(int i = 1; i <= m; i++){
+		int u = read(), v = read(), w = read();
+		add(u, v, w), add(v, u, 0);
+	}
+	while(bfs()) update();
+	cout << maxflow;
+}
+```
+
+**dinic算法：** 
+
+```cpp
+#include <bits/stdc++.h>
+#define int long long
+#define maxn 10005
+#define inf 1e9
+using namespace std;
+inline int read(){
+    int x = 0 , f = 1 ; char c = getchar() ;
+    while( c < '0' || c > '9' ) { if( c == '-' ) f = -1 ; c = getchar() ; } 
+    while( c >= '0' && c <= '9' ) { x = x * 10 + c - '0' ; c = getchar() ; } 
+    return x * f ;
+}
+struct edge{
+	int v, w, nxt;
+}e[maxn];
+int head[maxn], cnt;
+int n, m, s, t;
+void add(int u, int v, int w){
+	e[++cnt].v = v, e[cnt].w = w;
+	e[cnt].nxt = head[u], head[u] = cnt;
+}
+queue<int> q;
+int d[maxn], now[maxn];
+bool bfs(){
+	memset(d, 0, sizeof(d));
+	while(q.size()) q.pop();
+	q.push(s);
+	d[s] = 1;
+	now[s] = head[s];
+	while(!q.empty()){
+		int x = q.front(); q.pop();
+		for(int i = head[x]; i; i = e[i].nxt){
+			if(e[i].w && !d[e[i].v]){
+				q.push(e[i].v);
+				now[e[i].v] = head[e[i].v];
+				d[e[i].v] = d[x] + 1;
+				if(e[i].v == t) return 1;
+			}
+		}
+	}
+	return 0;
+}
+int dinic(int x, int flow){
+	if(x == t) return flow;
+	int rest = flow, k, i;
+	for(int i = now[x]; i && rest; i = e[i].nxt){
+		now[x] = i;
+		if(e[i].w && d[e[i].v] == d[x] + 1){
+			k = dinic(e[i].v, min(rest, e[i].w));
+			if(!k) d[e[i].v] = 0;
+			e[i].w -= k;
+			e[i ^ 1].w += k;
+			rest -= k;
+		}
+	}
+	return flow - rest;
+}
+int maxflow = 0;
+signed main() {
+	n = read(), m = read(), s = read(), t = read();
+	cnt = 1;
+	for(int i = 1; i <= m; i++){
+		int u = read(), v = read(), w = read();
+		add(u, v, w), add(v, u, 0);
+	}
+	int flow = 0;
+	while(bfs()){
+		while(flow = dinic(s, inf)) maxflow += flow;
+	}
+	cout << maxflow;
+}
+```
+
 
 
 ## 树上问题
@@ -1197,11 +1353,9 @@ int main(){
 
 **2.两遍dfs**
 
-有一个结论：从树上任意一点出发，到达其所能到达的最远点，记作$num$,再从$num$出发到达其所能到达的最远点$num2$,则$num1$和$num2$之间的距离就是树的直径。
+有一个结论：从树上任意一点出发，到达其所能到达的最远点，记作$num$,再从$num$出发到达其所能到达的最远点 $num2$ ,则 $num1$ 和 $num2$ 之间的距离就是树的直径。
 
 通过这个结论，我们可以通过两遍dfs求直径。
-
-模板：[P3304 [SDOI2013]直径
 
 
 
@@ -1583,23 +1737,45 @@ signed main(){
 
 
 
+# 杂项
+
+## C++高精
+
+`__int128`
+
+## 分数
+
+```cpp
+struct node{
+    ll p, q;
+    node(){
+        p = 0, q = 1;
+    }
+    node operator *(const ll &rhs) const {
+        node res;
+        res.p = p, res.q = q * rhs;
+        ll g = __gcd(res.p, res.q);
+        res.p /= g, res.q /= g;
+        return res;
+    }
+    node operator +(const node &rhs) const {
+        node res;
+        res.q = lcm(q, rhs.q);
+        res.p += p * (res.q / q);
+        res.p += rhs.p * (res.q / rhs.q);
+        ll g = __gcd(res.p, res.q);
+        res.p /= g, res.q /= g;
+        return res;
+    }
+}ans[maxn];
+void print(int n) {
+    if(n > 9) print(n / 10);
+    putchar(n % 10 + 48);
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+print(ans[i].p);
+cout << " / ";
+print(ans[i].q);
+cout << endl;
+```
